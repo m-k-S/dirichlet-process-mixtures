@@ -17,27 +17,26 @@ def estimate_parameters(data, assignments):
     means = np.dot(assignments.T, data) / assignment_counts[:, np.newaxis]
     sq_means = 2 * means * \
         np.dot(assignments.T, data) / assignment_counts[:, np.newaxis]
-    sum_mn = sq_means + means**2 + 1e-7
-    covariances = np.dot(assignments.T,
-                         data * data) / assignment_counts[:,
-                                                          np.newaxis] - sum_mn
+
+    avg_cov = np.dot(assignments.T, data * data) / \
+        assignment_counts[:, np.newaxis]
+    covariances = avg_cov - sq_means + means**2 + 1e-7
     return assignment_counts, means, covariances
 
 
 def estimate_weights(assignment_counts):
-    cumsum_counts = np.hstack((np.cumsum(assignment_counts[::-1])[-2::-1], 0))
+    stack_cumsum = np.hstack((np.cumsum(assignment_counts[::-1])[-2::-1], 0))
     weight_concentration = (1. + assignment_counts, (alpha +
-                                                     cumsum_counts))
+                                                     stack_cumsum))
     return weight_concentration
 
 
 def estimate_means(data, assignment_counts, means):
     new_mean_prec = 1. + assignment_counts
-    new_means = ((1. *
-                  data.mean(axis=0) +
-                  assignment_counts[:, np.newaxis] *
-                  means) /
-                 new_mean_prec[:, np.newaxis])
+
+    means_unnorm = (1. * data.mean(axis=0) +
+                    assignment_counts[:, np.newaxis] * means)
+    new_means = (means_unnorm / new_mean_prec[:, np.newaxis])
     return new_means, new_mean_prec
 
 
@@ -79,24 +78,30 @@ def compute_expectations(data, means, precisions_pd, concentrations):
     # Estimate log Gaussian probability (requires means, Cholesky precision
     # matrix, data, dof)
     precisions = precisions_pd ** 2
-    data_mean_prec = np.dot(data, (means * precisions).T)
-    data_sq_prec = np.dot(data ** 2, precisions.T)
-    log_prob = (np.sum((means ** 2 * precisions), 1) - 2. * data_mean_prec
-                + data_sq_prec)
+    sum_means_sq = np.sum((means ** 2 * precisions), 1)
+    log_prob = (
+        sum_means_sq -
+        2. *
+        np.dot(
+            data,
+            (means *
+             precisions).T) +
+        np.dot(
+            data ** 2,
+            precisions.T))
     log_prob_g = (-.5 * (D * np.log(2 * np.pi) + log_prob) +
                   log_determinant(precisions_pd)) - (.5 * D * np.log(dof))
 
     # Estimate total log probability (requires data, dof)
-    dof_newD = (dof - np.arange(0, D)[:, np.newaxis])
+    new_dofD = (dof - np.arange(0, D)[:, np.newaxis])
     log_prob_l = D * np.log(2.) + np.sum(digamma(.5 *
-                                                 dof_newD), 0)
+                                                 new_dofD), 0)
     log_prob_total = log_prob_g + 0.5 * (log_prob_l - D / mean_prec)
 
     # Estimate log weights
     digamma_sum = digamma(concentrations[0] + concentrations[1])
-    log_weights = digamma(concentrations[0]) - digamma_sum \
-        + np.hstack((0, np.cumsum(digamma(concentrations[1]) - digamma(
-            concentrations[0] + concentrations[1]))[:-1]))
+    log_weights = digamma(concentrations[0]) - digamma_sum + np.hstack(
+        (0, np.cumsum(digamma(concentrations[1]) - digamma_sum)[:-1]))
 
     # Estimate log likelihoods
     log_weighted_prob = log_weights + log_prob_total
@@ -119,32 +124,42 @@ def max_probabilities(data, log_likelihoods):
     return weight_conc, new_means, new_covariances, new_precisions
 
 
-def final_truncation(data, means, precisions_pd,
-                     concentrations, final_dof, final_mean_p):
+def final_truncation(
+        data,
+        means,
+        precisions_pd,
+        concentrations,
+        final_dof,
+        final_mean_p):
     def log_determinant(x): return np.sum(np.log(x), axis=1)
-
+    log_det_prec_pd = log_determinant(precisions_pd)
     # Estimate log Gaussian probability (requires means, Cholesky precision
     # matrix, data, dof)
     precisions = precisions_pd ** 2
-    data_mean_prec = np.dot(data, (means * precisions).T)
-    data_sq_prec = np.dot(data ** 2, precisions.T)
-    log_prob = (np.sum((means ** 2 * precisions), 1) - 2. * data_mean_prec
-                + data_sq_prec)
-    log_det_prec_pd = log_determinant(precisions_pd)
+    sum_means_sq = np.sum((means ** 2 * precisions), 1)
+    log_prob = (
+        sum_means_sq -
+        2. *
+        np.dot(
+            data,
+            (means *
+             precisions).T) +
+        np.dot(
+            data ** 2,
+            precisions.T))
     log_prob_g = (-.5 * (D * np.log(2 * np.pi) + log_prob) +
                   log_det_prec_pd) - (.5 * D * np.log(final_dof))
 
     # Estimate total log probability (requires data, dof)
-    dof_newD = (final_dof - np.arange(0, D)[:, np.newaxis])
+    new_dofD = final_dof - np.arange(0, D)[:, np.newaxis]
     log_prob_l = D * np.log(2.) + np.sum(digamma(.5 *
-                                                 dof_newD), 0)
+                                                 new_dofD), 0)
     log_prob_total = log_prob_g + 0.5 * (log_prob_l - D / final_mean_p)
 
     # Estimate log weights
     digamma_sum = digamma(concentrations[0] + concentrations[1])
-    log_weights = digamma(concentrations[0]) - digamma_sum \
-        + np.hstack((0, np.cumsum(digamma(concentrations[1]) - digamma(
-            concentrations[0] + concentrations[1]))[:-1]))
+    log_weights = digamma(concentrations[0]) - digamma_sum + np.hstack(
+        (0, np.cumsum(digamma(concentrations[1]) - digamma_sum)[:-1]))
 
     # Estimate log likelihoods
     log_weighted_prob = log_weights + log_prob_total
@@ -229,10 +244,10 @@ def dpmm(data, hyperparameters):
 
     final_means = means[final_weights > truncation]
     final_precisions = precisions[final_weights > truncation]
-    conc0_trunc = concentrations[0][final_weights > truncation]
-    conc1_trunc = concentrations[1][final_weights > truncation]
+    conc0trunc = concentrations[0][final_weights > truncation]
+    conc1trunc = concentrations[1][final_weights > truncation]
     final_concentrations = (
-        conc0_trunc, conc1_trunc)
+        conc0trunc, conc1trunc)
     final_dof = dof[final_weights > truncation]
     final_mean_prec = mean_prec[final_weights > truncation]
 
