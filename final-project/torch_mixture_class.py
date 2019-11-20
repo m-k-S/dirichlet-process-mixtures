@@ -2,6 +2,7 @@ import torch
 from torch import distributions as D
 from torch.nn import functional as F
 
+
 class MixtureSameFamily(D.Distribution):
     """ Mixture (same-family) distribution.
     The `MixtureSameFamily` distribution implements a (batch of) mixture
