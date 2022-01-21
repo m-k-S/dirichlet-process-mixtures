@@ -18,7 +18,7 @@ graphviz==0.11.1          # via pyro-ppl
 importlib-metadata==0.19  # via pluggy, pytest
 ipykernel==5.1.1          # via ipywidgets, jupyter, jupyter-console, notebook, qtconsole
 ipython-genutils==0.2.0   # via nbformat, notebook, qtconsole, traitlets
-ipython==7.7.0            # via ipykernel, ipywidgets, jupyter-console
+ipython==7.16.3            # via ipykernel, ipywidgets, jupyter-console
 ipywidgets==7.5.1         # via jupyter
 jedi==0.14.1              # via ipython
 jinja2==2.10.1            # via nbconvert, notebook
