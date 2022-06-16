@@ -38,7 +38,7 @@ mistune==0.8.4            # via nbconvert
 more-itertools==7.2.0     # via pytest
 nbconvert==5.5.0          # via jupyter, notebook
 nbformat==4.4.0           # via ipywidgets, nbconvert, notebook
-notebook==6.0.0           # via jupyter, jupyterlab, jupyterlab-server, widgetsnbextension
+notebook==6.4.12           # via jupyter, jupyterlab, jupyterlab-server, widgetsnbextension
 numpy==1.17.0
 opt-einsum==2.3.2         # via pyro-ppl
 packaging==19.1           # via pytest
